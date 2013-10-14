@@ -42,6 +42,11 @@ describe Chef::Resource::WindowsScript::PowershellScript, :windows_only do
     r
   end
 
+  before(:each) do
+    resource.not_if.clear
+    resource.only_if.clear
+  end
+
   describe "when the run action is invoked on Windows" do
     it "successfully executes a non-cmdlet Windows binary as the last command of the script" do
       resource.code(successful_executable_script_content + " | out-file -encoding ASCII #{script_output_path}")
@@ -176,7 +181,107 @@ describe Chef::Resource::WindowsScript::PowershellScript, :windows_only do
       source_contains_case_insensitive_content?( get_script_output, 'x86' ).should == true
     end
   end
+  
+  it "evaluates a not_if block using powershell.exe" do
+    resource.not_if "exit(! [System.Environment]::CommandLine.Contains('powershell.exe'))"
+    resource.should_skip?(:run).should be_true
+  end
 
+  it "evaluates an only_if block using powershell.exe" do
+    resource.only_if "exit(! [System.Environment]::CommandLine.Contains('powershell.exe'))"
+    resource.should_skip?(:run).should be_false    
+  end
+  
+  it "evaluates a not_if block as false" do
+    resource.not_if { false }
+    resource.should_skip?(:run).should be_false
+  end
+
+  it "evaluates a not_if block as true" do
+    resource.not_if { true }
+    resource.should_skip?(:run).should be_true
+  end
+  
+  it "evaluates an only_if block as false" do
+    resource.only_if { false }
+    resource.should_skip?(:run).should be_true
+  end
+
+  it "evaluates an only_if block as true" do
+    resource.only_if { true }
+    resource.should_skip?(:run).should be_false
+  end
+
+  it "evaluates a non-zero powershell exit status for not_if as true" do
+    resource.not_if "exit 37"
+    resource.should_skip?(:run).should be_false
+  end
+
+  it "evaluates a zero powershell exit status for not_if as false" do
+    resource.not_if "exit 0"
+    resource.should_skip?(:run).should be_true
+  end
+
+  it "evaluates a failed executable exit status for not_if as true" do
+    resource.not_if windows_process_exit_code_not_found_content
+    resource.should_skip?(:run).should be_true
+  end
+
+  it "evaluates a successful executable exit status for not_if as false" do
+    resource.not_if windows_process_exit_code_success_content
+    resource.should_skip?(:run).should be_true
+  end
+#=====
+  it "evaluates a failed executable exit status for only_if as false" do
+    resource.only_if windows_process_exit_code_not_found_content
+    resource.should_skip?(:run).should be_true
+  end
+
+  it "evaluates a successful executable exit status for only_if as true" do
+    resource.only_if windows_process_exit_code_success_content
+    resource.should_skip?(:run).should be_false
+  end
+
+  it "evaluates a failed cmdlet exit status for not_if as false" do
+    resource.not_if "throw 'up'"
+    resource.should_skip?(:run).should be_false
+  end
+
+  it "evaluates a successful cmdlet exit status for not_if as true" do
+    resource.not_if "cd ."
+    resource.should_skip?(:run).should be_true
+  end
+
+  it "evaluates a failed cmdlet exit status for only_if as false" do
+    resource.only_if "throw 'up'"
+    resource.should_skip?(:run).should be_true
+  end
+
+  it "evaluates a successful cmdlet exit status for only_if as true" do
+    resource.only_if "cd ."
+    resource.should_skip?(:run).should be_false
+  end
+  
+  it "evaluates a false powershell exit status for only_if as true" do
+    resource.not_if "exit $false"
+    resource.should_skip?(:run).should be_false    
+  end
+
+  it "evaluates a true powershell exit status for only_if as false" do
+    resource.not_if "exit $true"
+    resource.should_skip?(:run).should be_true
+  end
+
+  it "evaluates a false powershell exit status for not_if as false" do
+    resource.only_if "exit $false"
+    resource.should_skip?(:run).should be_true
+  end
+
+  it "evaluates a true powershell exit status for not_if as true" do
+    resource.only_if "exit $true"
+    resource.should_skip?(:run).should be_false
+  end
+    
   def get_script_output
     script_output = File.read(script_output_path)
   end
