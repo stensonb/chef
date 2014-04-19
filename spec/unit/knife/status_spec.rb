@@ -21,12 +21,12 @@ require 'highline'
 
 describe Chef::Knife::Status do
   before(:each) do
-    node = Chef::Node.new.tap do |n|
+    @node = Chef::Node.new.tap do |n|
       n.automatic_attrs["fqdn"] = "foobar"
       n.automatic_attrs["ohai_time"] = 1343845969
     end
     query = double("Chef::Search::Query")
-    query.stub(:search).and_yield(node)
+    query.stub(:search).and_yield(@node)
     Chef::Search::Query.stub(:new).and_return(query)
     @knife  = Chef::Knife::Status.new
     @stdout = StringIO.new
@@ -38,6 +38,63 @@ describe Chef::Knife::Status do
       @knife.run
       @stdout.string.match(/foobar/).should_not be_nil
       @stdout.string.match(/\e.*ago/).should be_nil
+    end
+
+    it 'returns nodes sorted via ohai_time' do
+
+    end
+
+    it 'returns nodes sorted in reverse of ohai_time if specified' do
+
+    end
+
+    describe 'node has ec2 key' do
+      it 'returns fqdn and ipaddress using node.ec2.public_hostname and node.ec2.public_ipv4' do
+
+      end
+    end
+
+  end
+
+  describe "::formatSingleNodeStatus" do
+    it "returns a formatted string containing time elapsed since last node check-in, and other node data" do
+      @knife.formatSingleNodeStatus(@node).match(/ago/).should_not be nil
+    end
+
+    describe 'time diff was > 24 hours ago' do
+      it 'returns hours, possibly in red' do #color output determined by Chef::Knife::UI.color?
+        hms_time = [25, 0, 0]
+        timetext = "#{hms_time[0]} hour#{hms_time[0] == 1 ? '' : 's'}"
+        ui = double()
+        @knife.instance_eval {@ui = ui}
+        @knife.should_receive(:time_difference_in_hms).and_return hms_time
+        ui.should_receive(:color).with(timetext, :red).and_return timetext
+        @knife.formatSingleNodeStatus(@node).match(/#{timetext} ago/).should_not be nil
+      end
+    end
+
+    describe 'time diff was >= 1 hour, and < 24 hours ago' do
+      it 'returns hours, possibly in yellow' do #color output determined by Chef::Knife::UI.color?
+        hms_time = [1, 0, 0]
+        timetext = "#{hms_time[0]} hour#{hms_time[0] == 1 ? '' : 's'}"
+        ui = double()
+        @knife.instance_eval {@ui = ui}
+        @knife.should_receive(:time_difference_in_hms).and_return hms_time
+        ui.should_receive(:color).with(timetext, :yellow).and_return timetext
+        @knife.formatSingleNodeStatus(@node).match(/#{timetext} ago/).should_not be nil
+      end
+    end
+
+    describe 'time diff was < 1 hour ago' do
+      it 'returns minutes, possibly in green' do #color output determined by Chef::Knife::UI.color?
+        hms_time = [0, 30, 0]
+        timetext = "#{hms_time[1]} minute#{hms_time[1] == 1 ? '' : 's'}"
+        ui = double()
+        @knife.instance_eval {@ui = ui}
+        @knife.should_receive(:time_difference_in_hms).and_return hms_time
+        ui.should_receive(:color).with(timetext, :green).and_return timetext
+        @knife.formatSingleNodeStatus(@node).match(/#{timetext} ago/).should_not be nil
+      end
     end
   end
 end
