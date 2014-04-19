@@ -61,39 +61,39 @@ describe Chef::Knife::Status do
       @knife.formatSingleNodeStatus(@node).match(/ago/).should_not be nil
     end
 
+    def mostSignificantUnitIndex hms_time
+      hms_time.each_with_index do |val, idx|
+        return idx if val > 0
+      end
+    end
+
+    def returnsUnitsandColorMaybe(hms_time, unit, color)
+      timetext = "#{hms_time[mostSignificantUnitIndex(hms_time)]} #{unit}#{hms_time[mostSignificantUnitIndex(hms_time)] == 1 ? '' : 's'}"
+      ui = double()
+      @knife.instance_eval {@ui = ui}
+      @knife.should_receive(:time_difference_in_hms).and_return hms_time
+      ui.should_receive(:color).with(timetext, color).and_return timetext
+      @knife.formatSingleNodeStatus(@node).match(/#{timetext} ago/).should_not be nil
+    end
+
     describe 'time diff was > 24 hours ago' do
       it 'returns hours, possibly in red' do #color output determined by Chef::Knife::UI.color?
         hms_time = [25, 0, 0]
-        timetext = "#{hms_time[0]} hour#{hms_time[0] == 1 ? '' : 's'}"
-        ui = double()
-        @knife.instance_eval {@ui = ui}
-        @knife.should_receive(:time_difference_in_hms).and_return hms_time
-        ui.should_receive(:color).with(timetext, :red).and_return timetext
-        @knife.formatSingleNodeStatus(@node).match(/#{timetext} ago/).should_not be nil
+        returnsUnitsandColorMaybe(hms_time, 'hour', :red)
       end
     end
 
     describe 'time diff was >= 1 hour, and < 24 hours ago' do
       it 'returns hours, possibly in yellow' do #color output determined by Chef::Knife::UI.color?
         hms_time = [1, 0, 0]
-        timetext = "#{hms_time[0]} hour#{hms_time[0] == 1 ? '' : 's'}"
-        ui = double()
-        @knife.instance_eval {@ui = ui}
-        @knife.should_receive(:time_difference_in_hms).and_return hms_time
-        ui.should_receive(:color).with(timetext, :yellow).and_return timetext
-        @knife.formatSingleNodeStatus(@node).match(/#{timetext} ago/).should_not be nil
+        returnsUnitsandColorMaybe(hms_time, 'hour', :yellow)
       end
     end
 
     describe 'time diff was < 1 hour ago' do
       it 'returns minutes, possibly in green' do #color output determined by Chef::Knife::UI.color?
         hms_time = [0, 30, 0]
-        timetext = "#{hms_time[1]} minute#{hms_time[1] == 1 ? '' : 's'}"
-        ui = double()
-        @knife.instance_eval {@ui = ui}
-        @knife.should_receive(:time_difference_in_hms).and_return hms_time
-        ui.should_receive(:color).with(timetext, :green).and_return timetext
-        @knife.formatSingleNodeStatus(@node).match(/#{timetext} ago/).should_not be nil
+        returnsUnitsandColorMaybe(hms_time, 'minute', :green)
       end
     end
   end
