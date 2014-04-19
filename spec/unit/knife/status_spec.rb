@@ -61,14 +61,14 @@ describe Chef::Knife::Status do
       @knife.formatSingleNodeStatus(@node).match(/ago/).should_not be nil
     end
 
-    def mostSignificantUnitIndex hms_time
-      hms_time.each_with_index do |val, idx|
-        return idx if val > 0
+    def mostSignificantUnit(hms_time)
+      hms_time.each do |val|
+        return val if val > 0
       end
     end
 
-    def returnsUnitsandColorMaybe(hms_time, unit, color)
-      timetext = "#{hms_time[mostSignificantUnitIndex(hms_time)]} #{unit}#{hms_time[mostSignificantUnitIndex(hms_time)] == 1 ? '' : 's'}"
+    def returnsUnitsandColorMaybe(hms_time, unit_type, color)
+      timetext = "#{mostSignificantUnit(hms_time)} #{unit_type}#{mostSignificantUnit(hms_time) == 1 ? '' : 's'}"
       ui = double()
       @knife.instance_eval {@ui = ui}
       @knife.should_receive(:time_difference_in_hms).and_return hms_time
