@@ -1,6 +1,6 @@
 #
-# Author:: AJ Christensen (<aj@hjksolutions.com>)
-# Copyright:: Copyright (c) 2008 Opscode, Inc.
+# Author:: Bryan McLellan <btm@loftninjas.org>
+# Copyright:: Copyright (c) 2014 Chef Software, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,18 +16,23 @@
 # limitations under the License.
 #
 
-require 'chef/provider/service/init'
+require 'spec_helper'
 
-class Chef
-  class Provider
-    class Service
-      class Invokercd < Chef::Provider::Service::Init
+require 'chef/knife/configure'
+require 'ohai'
 
-        def initialize(new_resource, run_context)
-          super
-          @init_command = "/usr/sbin/invoke-rc.d #{@new_resource.service_name}"
-        end
-      end
-    end
+describe "knife configure" do
+  let (:ohai) do
+    o = Ohai::System.new
+    o.load_plugins
+    o.require_plugin 'os'
+    o.require_plugin 'hostname'
+    o
+  end
+
+  it "loads the fqdn from Ohai" do
+    knife_configure = Chef::Knife::Configure.new
+    hostname_guess = ohai[:fqdn] || ohai[:machinename] || ohai[:hostname] || 'localhost'
+    expect(knife_configure.guess_servername).to eql(hostname_guess)
   end
 end

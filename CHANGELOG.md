@@ -1,6 +1,8 @@
 # Chef Client Changelog
 
 ## Unreleased
+* Make local mode stable enough to run chef-pedant
+* Catch HTTPServerException for 404 in remote_file retry (CHEF-5116)
 * Wrap code in block context when syntax checking so `return` is valid
   (CHEF-5199)
 * Quote git resource rev\_pattern to prevent glob matching files (CHEF-4940)
