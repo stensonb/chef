@@ -49,60 +49,66 @@ class Chef
       end
 
       def run
-        all_nodes = []
-        q = Chef::Search::Query.new
-        query = @name_args[0] || "*:*"
-        q.search(:node, query) do |node|
-          all_nodes << node
-        end
-        all_nodes.sort { |n1, n2|
-          if (config[:sort_reverse] || Chef::Config[:knife][:sort_status_reverse])
-            (n2["ohai_time"] or 0) <=> (n1["ohai_time"] or 0)
-          else
-            (n1["ohai_time"] or 0) <=> (n2["ohai_time"] or 0)
-          end
-        }.each do |node|
-          if node.has_key?("ec2")
-            fqdn = node['ec2']['public_hostname']
-            ipaddress = node['ec2']['public_ipv4']
-          else
-            fqdn = node['fqdn']
-            ipaddress = node['ipaddress']
-          end
-          hours, minutes, seconds = time_difference_in_hms(node["ohai_time"])
-          hours_text   = "#{hours} hour#{hours == 1 ? ' ' : 's'}"
-          minutes_text = "#{minutes} minute#{minutes == 1 ? ' ' : 's'}"
-          run_list = "#{node.run_list}" if config[:run_list]
-          if hours > 24
-            color = :red
-            text = hours_text
-          elsif hours >= 1
-            color = :yellow
-            text = hours_text
-          else
-            color = :green
-            text = minutes_text
-          end
+        all_nodes = search_nodes(@name_args[0] || '*:*')
+        sorted_nodes = sort_nodes(all_nodes)
+        remove_healthy_nodes(sorted_nodes) if config[:hide_healthy]
 
-          line_parts = Array.new
-          line_parts << @ui.color(text, color) + " ago" << node.name
-          line_parts << fqdn if fqdn
-          line_parts << ipaddress if ipaddress
-          line_parts << run_list if run_list
-
-          if node['platform']
-            platform = node['platform']
-            if node['platform_version']
-              platform << " #{node['platform_version']}"
-            end
-            line_parts << platform
-          end
-          highline.say(line_parts.join(', ') + '.') unless (config[:hide_healthy] && hours < 1)
+        sorted_nodes.each do |node|
+          highline.say(format_single_node_status(node) + '.')
         end
 
       end
 
-      def formatSingleNodeStatus(node)
+      def remove_healthy_nodes(node_list)
+        node_list.select{|node| time_difference_in_hms(node['ohai_time']).first > 0}
+      end
+
+      def search_nodes(query_string = '*:*')
+        results = []
+        q = Chef::Search::Query.new
+        q.search(:node, query_string) do |node|
+          results << node
+        end
+        results
+      end
+
+      def sort_nodes(node_list, reverse = false)
+        return [node_list] if !node_list.is_a?(Array)
+        return node_list if node_list.length == 1
+
+        node_list.sort!{ |n1, n2|
+          if (reverse)
+            (n2["ohai_time"] or 0) <=> (n1["ohai_time"] or 0)
+          else
+            (n1["ohai_time"] or 0) <=> (n2["ohai_time"] or 0)
+          end
+        }
+      end
+
+      def format_single_node_status(node)
+        fqdn, ipaddress = get_fqdn_and_ip(node)
+        line_parts = Array.new
+        line_parts << formatTimeDiff(node)
+        line_parts << node.name
+        line_parts << fqdn if fqdn
+        line_parts << ipaddress if ipaddress
+        line_parts << formatPlatformVersion(node) if node['platform']
+
+        line_parts.join(', ')
+      end
+
+      def formatPlatformVersion(node)
+        answer = []
+        if node['platform']
+          answer << node['platform']
+          if node['platform_version']
+            answer << node['platform_version']
+          end
+        end
+        answer
+      end
+
+      def formatTimeDiff(node)
         hours, minutes, seconds = time_difference_in_hms(node["ohai_time"])
 
         hours_text   = "#{hours} hour#{hours == 1 ? '' : 's'}"
@@ -119,15 +125,12 @@ class Chef
           text = minutes_text
         end
 
-        line_parts = Array.new
-        line_parts << @ui.color(text, color) + " ago" << node.name
-=begin
-        line_parts << fqdn if fqdn
-        line_parts << ipaddress if ipaddress
-        line_parts << run_list if run_list
-=end
+        @ui.color(text, color) + " ago"
+      end
 
-        line_parts.join(', ')
+      def get_fqdn_and_ip(node)
+        return [node['ec2']['public_hostname'], node['ec2']['public_ipv4']] if node.has_key?('ec2')
+        [node['fqdn'], node['ipaddress']]
       end
 
       # :nodoc:
