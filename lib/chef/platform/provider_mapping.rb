@@ -57,7 +57,6 @@ class Chef
             :freebsd => {
               :default => {
                 :group   => Chef::Provider::Group::Pw,
-                :package => Chef::Provider::Package::Freebsd,
                 :service => Chef::Provider::Service::Freebsd,
                 :user    => Chef::Provider::User::Pw,
                 :cron    => Chef::Provider::Cron
@@ -208,6 +207,15 @@ class Chef
               }
             },
             :ibm_powerkvm   => {
+              :default => {
+                :service => Chef::Provider::Service::Redhat,
+                :cron => Chef::Provider::Cron,
+                :package => Chef::Provider::Package::Yum,
+                :mdadm => Chef::Provider::Mdadm,
+                :ifconfig => Chef::Provider::Ifconfig::Redhat
+              }
+            },
+            :cloudlinux   => {
               :default => {
                 :service => Chef::Provider::Service::Redhat,
                 :cron => Chef::Provider::Cron,
