@@ -1,3 +1,5 @@
+hi there
+
 # Chef
 
 Want to try Chef? Get started with [learnchef](https://learnchef.opscode.com)
